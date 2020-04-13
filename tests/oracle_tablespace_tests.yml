@@ -1,0 +1,289 @@
+---
+# Run using : ansible-playbook oracle_tablespace_tests.yml
+- name: Create and drop tablespace
+  hosts: oracle_container
+  gather_facts: false
+  tags: "test1"
+
+  tasks:
+    - name: create permanent tablespace
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "ts"
+        size: "1M"
+        datafile: "/tmp/ts.dbf"
+        state: "present"
+        bigfile: no
+      register: _
+      failed_when: _.changed == false
+
+    - name: create undo tablespace
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "ts_undo"
+        size: "1M"
+        datafile: "/tmp/ts_undo.dbf"
+        state: "online"
+        bigfile: no
+        content: "undo"
+      register: _
+      failed_when: _.changed == false
+
+    - name: create temp tablespace
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "ts_temp"
+        size: "2M"
+        datafile: "/tmp/ts_temp.dbf"
+        state: "present"
+        bigfile: yes
+        content: "temp"
+      register: _
+      failed_when: _.changed == false
+
+    - name: drop tablespaces
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "{{ item }}"
+        state: "absent"
+      register: _
+      failed_when: _.changed == false
+      loop:
+        - ts
+        - ts_undo
+        - ts_temp
+
+- name: Create in check mode
+  hosts: oracle_container
+  gather_facts: false
+  tags: "test2"
+
+  tasks:
+    - name: create tablespace in check mode
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "ts"
+        size: "1M"
+        datafile: "/tmp/ts.dbf"
+        state: "present"
+        bigfile: no
+      register: _
+      failed_when: _.changed == false
+      check_mode: yes
+
+    - name: drop tablespaces don't do anything
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "ts"
+        state: "absent"
+      register: _
+      failed_when: _.changed == true
+
+- name: Drop in check mode
+  hosts: oracle_container
+  gather_facts: false
+  tags: "test3"
+
+  tasks:
+    - name: create tablespace in check mode
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "ts"
+        size: "1M"
+        datafile: "/tmp/ts.dbf"
+        state: "present"
+        bigfile: no
+
+    - name: drop tablespace in check mode should change
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "ts"
+        state: "absent"
+      register: _
+      failed_when: _.changed == false
+      check_mode: yes
+
+    - name: drop tablespace should still change and really drop
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "ts"
+        state: "absent"
+      register: _
+      failed_when: _.changed == false
+
+- name: Create with several datafiles
+  hosts: oracle_container
+  gather_facts: false
+  tags: "test4"
+
+  tasks:
+    - name: create permament tablespace
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "ts"
+        size: "1M"
+        datafile:
+          - "/tmp/ts1.dbf"
+          - "/tmp/ts2.dbf"
+        state: "present"
+        bigfile: no
+
+    - name: create temp tablespace
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "ts_temp"
+        size: "2M"
+        datafile:
+          - "/tmp/ts_temp1.dbf"
+          - "/tmp/ts_temp2.dbf"
+        state: "present"
+        bigfile: no
+        content: "temp"
+
+    - name: drop tablespaces
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "{{ item }}"
+        state: "absent"
+      loop:
+        - "ts"
+        - "ts_temp"
+
+- name: Modify a tablespace
+  hosts: oracle_container
+  gather_facts: false
+  tags: "test5"
+
+  tasks:
+    - name: create tablespace
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "ts"
+        size: "1M"
+        datafile:
+          - "/tmp/ts1.dbf"
+        state: "present"
+        bigfile: no
+
+    - name: add datafile
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "ts"
+        size: "1M"
+        datafile:
+          - "/tmp/ts1.dbf"
+          - "/tmp/ts2.dbf"
+        state: "present"
+        bigfile: no
+
+    - name: add datafile
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "ts"
+        size: "2M"
+        datafile:
+          - "/tmp/ts1.dbf"
+          - "/tmp/ts3.dbf"
+        state: "present"
+        bigfile: no
+        autoextend: yes
+        nextsize: "1M"
+        maxsize: "10M"
+
+    - name: drop tablespace
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "ts"
+        state: "absent"
+
+- name: Test error message
+  hosts: oracle_container
+  gather_facts: false
+  tags: "test6"
+
+  tasks:
+    - name: create tablespace
+      local_action:
+        module: oracle_tablespace
+        service_name: "xepdb1"
+        user: "sys"
+        password: "password"
+        mode: "sysdba"
+        tablespace: "ts"
+        size: "1M"
+        datafile:
+          - "/tmp/t's1.dbf"
+        state: "present"
+        bigfile: no
+      ignore_errors: true
+      register: _
+
+    - name: verify error
+      fail:
+        msg: "no error or wrong error"
+      when: not _.failed or (_.code != 933 and 'ORA-00933' not in _.msg and _.request is not defined)
+...
